@@ -1,0 +1,1414 @@
+\documentclass[10pt]{beamer}
+
+\usepackage{lecture-style}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\title{Biophysics}
+
+\author{\textbf{Jakub Rydzewski}\\[5pt]
+  \footnotesize{\it NCU Institute of Physics}}
+
+\date{\footnotesize\textcolor{gray}{Updated: \today}}
+
+\begin{document}
+
+{\setbeamertemplate{footline}{}\frame{\titlepage}}
+
+\begin{frame}{Literature}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item M.~E. Tuckerman, \textit{Statistical Mechanics: Theory and Simulation}, Oxford University Press (2016).
+  \item D. Chandler, \textit{Introduction to Modern Statistical Mechanics}, Oxford University Press (1987).
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{}
+  \begin{center}
+    \fontsize{25pt}{6}\selectfont\vspace{1.2cm}
+    \textcolor{subtitle}{Monte Carlo Methods}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Monte Carlo Methods}
+The main steps of the Monte Carlo sampling are:
+\vspace*{0.5cm}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Choose randomly a new configuration in phase space based on a Markov chain.
+  \item Accept or reject the new configuration, depending on the strategy used.
+  \item Compute the physical quantity and add it to the averaging procedure.
+  \item Repeat the previous steps until convergence.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Monte Carlo Methods}
+
+\texttt{code/importance-sampling.py}
+
+\begin{equation}
+  I = \int_0^1\d x \int_0^{\sqrt{1-x^2}}\d y = \frac{\pi}{4}
+\end{equation}
+\end{frame}
+
+\begin{frame}{Monte Carlo Methods}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item The integrals that must be evaluated in equilibrium statistical mechanics are generally of the form:
+  \begin{equation}
+  \label{eq:general_int}
+    I = \int\d \bx\; \phi(\bx) p(\bx),
+  \end{equation}
+  where $\bx$ is an $n$-dimensional vector, $\phi(\bx)$ is an arbitrary function, and $p(\bx)$ is a function satisfying the properties of a probability distribution:
+  \begin{equation}
+    p(\bx)\geq 0~~~\mathrm{and}~~~\int\d\bx\; p(\bx) = 1.
+  \end{equation}
+
+  \item Eq.~\ref{eq:general_int} represents the ensemble average of a physical observable in equilibrium statistial mechanics.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Monte Carlo Methods}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Let $\bx_1, \bx_2, \dots, \bx_M$ be a set of $M$ $n$-dimensional vectors that are sampled from $p(\bx)$.
+
+  \item The problem of sampling from $p(\bx)$ is a nontrivial one.
+
+  \item For now, let us assume that such an algorithm exists. Then, an estimator:
+  \begin{equation}
+    \hat{I}_M = \frac{1}{M}\sum_{i=1}^M \phi(\bx_i)
+  \end{equation}
+  is such that:
+  \begin{equation}
+  \label{eq:est}
+    \lim_{M\rightarrow\infty} \hat{I}_M = I.
+  \end{equation}
+
+  \item Eq.~\ref{eq:est} is guaranteed by the \textit{central limit theorem}.\fref{For the derivation, see M.~E. Tuckerman, \textit{Statistical Mechanics: Theory and Simulation}, Oxford University Press (2016), p.~281.}
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Monte Carlo Methods}
+\textbf{Central Limit Theorem}\vspace{0.2cm}
+\emphbox{%
+If $\bx_1, \bx_2, \dots, \bx_n$ are $n$ random variables drawn from a population with overall mean $\mu$ and finite variance $\sigma^2$, and if $\bar{\bx}_n$ is the sample mean, the limiting form of the distribution, $\lim_{n \rightarrow \infty} \sqrt{n} \left( \frac{\bar{\bx}_n - \mu}{\sigma} \right)$, is the standard normal distribution.}
+\end{frame}
+
+\begin{frame}{Monte Carlo Methods}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Example of sampling a simple distribution given by:
+  \begin{equation}
+    p(x) = c\e^{-cx},
+  \end{equation}
+  on the interval $x\in [0, \infty)$.
+
+  \item To sample from $p(x)$, we need $P(X)$ such that:
+  \begin{equation}
+    \label{eq:cum}
+    P(X) = \int_0^X \d x\; c\e^{-cx} = 1 - \e^{-cX},
+  \end{equation}
+  and equate Eq.~\ref{eq:cum} to a random number $\xi \in [0,1]$, then we can solve for X, which gives:
+  \begin{equation}
+    X = -\frac{1}{c}\log(1-\xi).
+  \end{equation}
+
+  \item In general, we do not have such simple distribution to sample from in statistical mechanics.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Monte Carlo Methods: Examples}
+\begin{block}{Estimator no 1}
+\begin{lstlisting}
+def pi_estimator(n_samples):
+  est = list()
+  n_inside = 0; n_all = 0
+  for i in range(n_samples):
+    x = np.random.uniform(-1.0, 1.0)
+    y = np.random.uniform(-1.0, 1.0)
+    dist = np.sqrt(np.power(x, 2) +
+                   np.power(y, 2))
+    if dist <= 1.0:
+      n_inside += 1
+    n_all += 1
+    est.append(4.0 * np.float(n_inside) /
+               np.float(n_all))
+  return np.array(est)
+\end{lstlisting}
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Monte Carlo Methods: Examples}
+\begin{figure}
+  \includegraphics[width=0.8\textwidth]{../code/fig/estimator-1.png}
+  \caption{Estimator no 1.}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Monte Carlo Methods: Examples}
+\begin{block}{Estimator no 2}
+\begin{lstlisting}
+def pi_estimator_integral(n_samples):
+  est = list()
+  e = 0.0
+  for i in range(n_samples):
+    x = np.random.uniform(0.0, 1.0)
+    y = 4.0 * np.sqrt(1.0 - np.power(x, 2))
+    e += (y - e) / (np.float(i) + 1.0)
+    est.append(e)
+  return np.array(est)
+\end{lstlisting}
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Monte Carlo Methods: Examples}
+\begin{figure}
+  \includegraphics[width=0.8\textwidth]{../code/fig/estimator-2.png}
+  \caption{Estimator no 2.}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Monte Carlo Methods: Examples}
+\begin{block}{Estimator no 3}
+\begin{lstlisting}
+def pi_estimator_markov_chain(n_samples, step=0.1):
+  est = list()
+  n_inside = 0; n_all = 0;
+  x = np.random.uniform(-1.0, 1.0)
+  y = np.random.uniform(-1.0, 1.0)
+  for i in range(n_samples):
+    dx = np.random.uniform(-step, step)
+    dy = np.random.uniform(-step, step)
+    xn = x + dx; yn = y + dy
+    if abs(xn) < 1.0 and abs(yn) < 1.0:
+      x = xn; y = yn
+    dist = np.sqrt(np.power(x, 2) + np.power(y, 2))
+    if dist <= 1.0: n_inside += 1
+    n_all += 1
+    est.append(4.0 * np.float(n_inside) /
+               np.float(n_all))
+  return np.array(est)
+\end{lstlisting}
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Monte Carlo Methods: Examples}
+\begin{figure}
+  \includegraphics[width=0.8\textwidth]{../code/fig/estimator-3.png}
+  \caption{Estimator no 3.}
+\end{figure}
+\end{frame}
+
+
+\begin{frame}{M(RT)$^2$}
+\textbf{Markov Chain}\vspace{0.2cm}
+\emphbox{
+  If the vectors $\bx_1, \dots, \bx_M$ are generated sequentially, and $\bx_{i+1}$ is generated only based on the knowledge of $\bx_i$. the sequence is called a Makov chain.
+}
+\end{frame}
+
+\begin{frame}{M(RT)$^2$}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item For physical systems, a Markov chain must satisfy the condition of \textit{detailed balance}, which ensures that the Markov process is microscopically reversible.
+
+  \item M(RT)$^2$ is a rejection method.
+
+  \item With the acceptance probability given by:
+  \begin{equation}
+    A(\bx_i | \bx_j) = \min\left[1, {f(\bx_i)}/{f(\bx_j)}\right],
+  \end{equation}
+  where $f(\bx)$ is the probability of the system being at $\bx$.
+
+  \item Sampling in the canonical ensemble:\fref{Reminder: $\br$ are microscopic coordinates.}
+  \begin{equation}
+    A(\br_i | \br_j) = \min\left[1, \e^{-\beta \left[U(\br_i)-U(\br_j)\right]} \right],
+  \end{equation}
+  as $f(\br) \propto \e^{-\beta U(\br)}$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Particle on Double-Well Potential}
+\begin{lstlisting}
+python mc-double-well.py --n_samples 10000 --temp 5
+\end{lstlisting}
+\vspace*{-0.3cm}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/dw-pot.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Particle on Double-Well Potential}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/dw-traj.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Particle on Double-Well Potential}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/dw-hist.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Particle on the M\"uller-Brown Potential}
+\begin{lstlisting}
+python mc-potential.py --n_samples 10000 --temp 1.0
+\end{lstlisting}
+\vspace*{-0.3cm}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/mc-mb-t-1.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Particle on the M\"uller-Brown Potential}
+\begin{lstlisting}
+python mc-potential.py --n_samples 10000 --temp 2.0
+\end{lstlisting}
+\vspace*{-0.3cm}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/mc-mb-t-2.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Particle on the M\"uller-Brown Potential}
+\begin{lstlisting}
+python mc-potential.py --n_samples 10000 --temp 3.0
+\end{lstlisting}
+\vspace*{-0.3cm}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/mc-mb-t-3.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Particle on the M\"uller-Brown Potential}
+\begin{lstlisting}
+python mc-potential.py --n_samples 10000 --temp 4.0
+\end{lstlisting}
+\vspace*{-0.3cm}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/mc-mb-t-4.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Particle on the M\"uller-Brown Potential}
+\begin{lstlisting}
+python mc-potential.py --n_samples 10000 --temp 5.0
+\end{lstlisting}
+\vspace*{-0.3cm}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/mc-mb-t-5.png}
+\end{figure}
+\end{frame}
+
+
+\begin{frame}{}
+  \begin{center}
+    \fontsize{25pt}{6}\selectfont\vspace{1.2cm}
+    \textcolor{subtitle}{Molecular Dynamics}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Molecular Dynamics}
+There are three main ingredients in molecular dynamics (MD):
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item The algorithm to integrate the equations of motion,
+  \item The model describing the interparticle interactions,
+  \item The calculation of forces and energies from the model.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Verlet Algorithm}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item The simplest approach to obtain a numerical integration scheme is to use a Taylor series:
+  \begin{equation}
+  \label{eq:v-plus}
+    \br_i(t+\Delta t) \approx \br_i(t) + \Delta t \mathbf{v}_i(t) + \frac{\Delta t^2}{2m_i}\mathbf{F}_i(t),
+  \end{equation}
+  and
+  \begin{equation}
+  \label{eq:v-minus}
+    \br_i(t-\Delta t) \approx \br_i(t) - \Delta t \mathbf{v}_i(t) + \frac{\Delta t^2}{2m_i}\mathbf{F}_i(t).
+  \end{equation}
+
+  \item Adding Eq.~\ref{eq:v-plus} to Eq.~\ref{eq:v-minus}, we get a velocity-independent Verlet algorithm:
+  \begin{equation}
+    \br_i(t+\Delta t) = 2\br_i(t) - \br_i(t-\Delta t) + \frac{\Delta t^2}{m_i}\mathbf{F}_i(t).
+  \end{equation}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Velocity Verlet Algorithm}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Consider a shift in time in comparision to Eq.~\ref{eq:v-plus}:
+  \begin{equation}
+    \br_i(t) \approx \br_i(t+\Delta t) - \Delta t \mathbf{v}_i(t+\Delta t) + \frac{\Delta t^2}{2m_i}\mathbf{F}_i(t+\Delta t),
+  \end{equation}
+  which after some rearrangements takes the following form:
+  \begin{equation}
+    \mathbf{v}_i(t+\Delta t) = \mathbf{v}_i(t) + \frac{\Delta t}{2m_i}\left[ \mathbf{F}_i(t) + \mathbf{F}_i(t+\Delta t) \right].
+  \end{equation}
+
+  \item This scheme allows to use both evolution of the positions and velocities.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Initial Conditions}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Initial coordinates.
+
+  \item Initial velocities are sampled from a Maxwell-Boltzmann distribution, taking care to ensure that the sampled velocities are consistent with any constraints imposed on the system:
+  \begin{equation}
+    f(v) = \frac{m}{2\pi k_\mathrm{B}T}^{1/2} \e^{-mv^2 / 2 k_\mathrm{B}T},
+  \end{equation}
+  where $v$ is the velocity of a particle of mass $m$ at temperature $T$.
+
+  \item An example of a Gaussian probability distribution.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Potential Energy Model}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Commonly used model of potential energy in MD for biological macromolecules is the following:
+  \begin{align}
+    U(\br)
+      &= \sum_\mathrm{bond} \frac{1}{2} K_\mathrm{bond} (r-r_0)^2 \\
+      &+ \sum_\mathrm{angle} \frac{1}{2} K_\mathrm{bends} (\theta-\theta_0)^2 \\
+      &+ \sum_\mathrm{dihedral} \sum_{n=0}^6 A_n [1+\cos(C_n \phi + \delta_n)] \\
+      &+ \sum_{i,j\in \mathrm{non-bonded}} \left( 4\epsilon_{ij} \left[ \frac{\sigma_{ij}}{r_{ij}}^{12} - \frac{\sigma_{ij}}{r_{ij}}^6 \right] + \frac{q_i q_j}{r_{ij}} \right).
+  \end{align}
+
+  \item Force is given by $\mathbf{F} = -\partial{U}/\partial{\br}$.
+
+  \item Called \textit{force field} in MD.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Potential Energy Model}
+\begin{itemize}
+  \item Force field provides constraints into the systems.
+  \begin{figure}
+    \includegraphics[width=\textwidth]{fig/ff.png}
+    \caption{Force field contributions.}
+  \end{figure}
+
+  \item Many force fields are available: Amber, CHARMM, Gromos.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{General Scheme in MD}
+\begin{figure}
+  \includegraphics[width=0.7\textwidth]{fig/md-scheme.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Particle on the Wolfe-Quapp Potential}
+\begin{lstlisting}
+for i in range(0, args.n_samples-1):
+  position[i+1] = position[i]
+                + velocity[i]*dt
+                + 0.5*(force/m)*dt**2
+  p, f = U.eval(position[i+1])
+  velocity[i+1] = velocity[i]
+                + 0.5/m*dt*(force+f)
+  p_energy[i+1] = p
+  force = f
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Particle on the Wolfe-Quapp Potential}
+\begin{lstlisting}
+python MD-WolfeQuapp.py --n_samples 10000 --dt 0.01 --mass 1
+\end{lstlisting}
+\vspace*{-0.3cm}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/md-wq.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Particle on the M\"uller-Brown Potential}
+\begin{lstlisting}
+python MD-MuellerBrown.py --n_samples 10000 --dt 0.01 --mass 1
+\end{lstlisting}
+\vspace*{-0.3cm}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/md-mb.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Particle on the M\"uller-Brown Potential}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/md-mb-trajx.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Particle on the M\"uller-Brown Potential}
+\begin{figure}
+  \includegraphics[width=\textwidth]{../code/fig/md-mb-trajy.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Alanine Dipeptide}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Benchmark system for MD methods.
+  \begin{figure}
+    \includegraphics[width=0.7\textwidth]{fig/alanine.png}
+    \caption{Alanine dipeptide with the dihedral angles.}
+  \end{figure}
+
+  \item Scatter plot of the dihedral angles in called the Ramachandran plot.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Alanine Dipeptide}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item An example of the \texttt{.gro} file with alanine dipeptide.
+\end{itemize}
+\begin{lstlisting}
+     22
+    1ACE   HH31    1   1.075   1.111   1.585
+    1ACE    CH3    2   1.129   1.065   1.502
+    1ACE   HH32    3   1.070   0.991   1.448
+    1ACE   HH33    4   1.215   1.011   1.540
+    1ACE      C    5   1.162   1.167   1.395
+    1ACE      O    6   1.140   1.286   1.416
+    2ALA      N    7   1.230   1.118   1.289
+    2ALA      H    8   1.248   1.019   1.293
+    2ALA     CA    9   1.260   1.194   1.165
+    2ALA     HA   10   1.304   1.125   1.093
+    2ALA     CB   11   1.126   1.224   1.093
+    2ALA    HB1   12   1.078   1.312   1.135
+    2ALA    HB2   13   1.147   1.247   0.989
+    2ALA    HB3   14   1.073   1.129   1.094
+    2ALA      C   15   1.357   1.317   1.171
+    2ALA      O   16   1.392   1.372   1.068
+    3NME      N   17   1.404   1.353   1.294
+    3NME      H   18   1.350   1.322   1.373
+    3NME    CH3   19   1.517   1.445   1.315
+    3NME   HH31   20   1.495   1.544   1.278
+    3NME   HH32   21   1.546   1.457   1.420
+    3NME   HH33   22   1.606   1.405   1.267
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Alanine Dipeptide}
+\begin{itemize}
+\setlength\itemsep{1em}
+
+  \item Free energy can be calculated if the trajectory diplays ergodicity as:
+  \begin{equation}
+    F(\Phi,\Psi)=-\beta^{-1}\log P(\Phi,\Psi),
+  \end{equation}
+  where $\beta$ is the inverse temperature and $P(\Phi,\Psi)$ is the probability of occurence in a given state described by the dihedral angles.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Alanine Dipeptide}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Difference between the ergodic and non-ergodic trajectories.
+  \begin{figure}
+    \includegraphics[width=\textwidth]{fig/ala1-time.png}
+    \caption{Time evolution of alanine dipeptide in vacuum.}
+  \end{figure}
+
+  \item In the left, the transitions between two energy basins are \textit{rare} or \textit{infrequent}.
+
+  \item In the right, the trajectory jumps between the states many times.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Proteins in MD}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Proteins, DNA, viruses, membranes can be studied using MD.
+  \begin{figure}
+    \includegraphics[width=0.8\textwidth]{fig/pes-protein.jpg}
+    \caption{Protein in the phase space.}
+  \end{figure}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{MD Engines}
+  \begin{figure}
+    \includegraphics[width=0.4\textwidth]{fig/gmx.png}
+  \end{figure}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Gromacs \url{https://www.gromacs.org/}
+  \item NAMD \url{https://www.ks.uiuc.edu/Research/namd/}
+  \item OpenMM \url{https://openmm.org/}
+  \item LAMMPS \url{https://lammps.sandia.gov/}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{LAMMPS}
+  \begin{quote}
+    LAMMPS is a classical molecular dynamics (MD) code that models ensembles of particles in a liquid, solid, or gaseous state. It can model atomic, polymeric, biological, solid-state (metals, ceramics, oxides), granular, coarse-grained, or macroscopic systems using a variety of interatomic potentials (force fields) and boundary conditions. It can model 2d or 3d systems with only a few particles up to millions or billions.\fref{Source: LAMMPS Page: \url{https://lammps.sandia.gov/}}
+  \end{quote}
+\end{frame}
+
+\begin{frame}[fragile]{LAMMPS: Executables for Linux}
+  \begin{itemize}
+    \item Pre-built Ubuntu Linux executable (\texttt{lammps-stable}):
+    \begin{lstlisting}
+  $ sudo add-apt-repository ppa:gladky-anton/lammps
+  $ sudo apt-get update
+  $ sudo apt-get install lammps-stable
+    \end{lstlisting}
+
+    \item Pre-built OpenSuse Linux executable (\texttt{lmp}):
+    \begin{lstlisting}
+  $ zypper install lammps
+    \end{lstlisting}
+
+    \item Archlinux build-script (\texttt{lmp}):
+    \begin{lstlisting}
+  $ git clone https://aur.archlinux.org/lammps.git
+  $ cd lammps
+  $ makepkg -s
+  $ makepkg -i
+    \end{lstlisting}
+
+    \item Also Conda:
+    \begin{lstlisting}
+  $ conda config --add channels conda-forge
+  $ conda create -n lammps-env
+  $ conda activate lammps-env
+  $ conda install lammps
+    \end{lstlisting}
+  \end{itemize}
+  \frefw{Source: \url{https://lammps.sandia.gov/doc/Install.html}}
+\end{frame}
+
+\begin{frame}[fragile]{LAMMPS: \texttt{cmake}}
+  \begin{itemize}
+    \item However, it is suggested to build LAMMPS yourself.
+    \item You can do this executing \texttt{./build-lammps.sh}.
+  \end{itemize}
+    \begin{lstlisting}
+#!/bin/bash
+set -e
+
+LAMMPS_VERSION=3Mar2020
+Make_CPUs=4
+URL=https://github.com/lammps/lammps/archive
+wget ${URL}/stable_${LAMMPS_VERSION}.zip
+unzip stable_${LAMMPS_VERSION}.zip
+rm -f stable_${LAMMPS_VERSION}.zip
+cd lammps-stable_${LAMMPS_VERSION}
+
+mkdir build; cd build
+cmake -DPKG_MANYBODY=yes \
+      -DPKG_KSPACE=yes \
+      -DPKG_MOLECULE=yes \
+      -DPKG_RIGID=yes \
+	     ../cmake
+make VERBOSE=1 -j ${Make_CPUs}
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{LAMMPS}
+  \begin{itemize}
+  \setlength\itemsep{1em}
+    \item The tarball for this project can be downloaded here: \href{https://ves-code.github.io/doc-v2.7-irtg-school-2020/user-doc/html/tutorial-resources/irtg-school-mainz-2020-metad.tar.gz}{click}.
+
+    \item Contains the input file for the unbiased simulation.
+
+    \begin{lstlisting}
+  irtg-school-mainz-2020/ $ tree
+  .
+  |-- data.nacl
+  |-- in.nacl
+  |-- nacl.psf
+  |-- run.sh
+  |-- start.lmp
+  |-- state.vmd
+    \end{lstlisting}
+  \end{itemize}
+  \frefw{Source: \url{https://ves-code.github.io/doc-v2.7-irtg-school-2020/user-doc/html/ves_tutorials.html}}
+\end{frame}
+
+\begin{frame}{LAMMPS}
+  \begin{itemize}
+    \setlength\itemsep{1em}
+    \item The files comes from the TRR 146 IRTG School 2020 tutorial, and were prepared by \href{https://www2.mpip-mainz.mpg.de/~valsson/}{Omar Valsson}.
+    \item We consider NaCl in aqueous solution.
+    \item The dissociation barrier is expected to be around 2.5 $\kT$.
+    \item Collective solvent motions play an important role in the transition.
+    \item The system contains 1 Na, 1 Cl, and 106 water molecules (total 320 atoms).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{LAMMPS}
+  \begin{itemize}
+    \setlength\itemsep{1em}
+    \item The system:
+  \end{itemize}
+  \begin{figure}
+    \includegraphics[width=0.6\textwidth]{fig/NaCl.png}
+    \caption{NaCl in water.}
+  \end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{LAMMPS}
+  \begin{itemize}
+    \setlength\itemsep{1em}
+    \item Download VMD (\href{https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=VMD}{click})
+
+    \item Load the LAMMPS data file (\texttt{data.nacl}).
+
+    \item Open VMD $\rightarrow$ Extensions $\rightarrow$ TK console.
+    \begin{lstlisting}
+  $ topo readlammpsdata data.nacl
+  $ play state.vmd
+    \end{lstlisting}
+
+    \item We will run the simulation for 1 ns (see \texttt{start.lmp})
+
+    \item You can do this by executing \texttt{run.sh}.
+    \begin{lstlisting}
+  #!/bin/bash
+
+  lmpexec=$HOME/lammps-stable_3Mar2020/build/lmp
+  ncor=2
+
+  mpirun -np ${ncor} ${lmpexec} < start.lmp > out.lmp
+    \end{lstlisting}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{}
+  \begin{center}
+    \vspace{1.2cm}
+    \includegraphics[width=0.8\textwidth]{fig/plumed-logo.png}
+  \end{center}
+  \frefw{Source: \url{https://www.plumed.org/}}
+\end{frame}
+
+\begin{frame}{PLUMED}
+  PLUMED is an open-source, community-developed library that provides a wide range of different methods, which include:
+  \begin{itemize}
+    \item enhanced-sampling algorithms,
+    \item free-energy methods,
+    \item tools to analyze the vast amounts of data produced by molecular dynamics (MD) simulations.
+  \end{itemize}
+  These techniques can be used in combination with a large toolbox of collective variables that describe complex processes in physics, chemistry, material science, and biology.\fref{Source: \url{https://www.plumed.org/}}
+\end{frame}
+
+\begin{frame}[fragile]{PLUMED: Build for Linux}
+  \begin{itemize}
+    \item Run \texttt{build-plumed.sh} (\texttt{plumed}):
+    \begin{lstlisting}
+  #!/bin/bash
+  set -e
+
+  PLUMED_VERSION=2.6.2
+  Make_CPUs=2
+  URL=https://github.com/plumed/plumed2/archive
+  wget ${URL}/v${PLUMED_VERSION}.zip
+  unzip v${PLUMED_VERSION}.zip
+  cd plumed2-${PLUMED_VERSION}
+  INSTALL_DIR=${PWD}/install
+
+  ./configure --prefix=${INSTALL_DIR}
+  make -j ${Make_CPUs}
+  make install
+    \end{lstlisting}
+
+    \item Or use Conda:
+    \begin{lstlisting}
+  $ conda config --add channels conda-forge
+  $ conda create -n lammps-env
+  $ conda activate lammps-env
+  $ conda install -c conda-forge plumed
+    \end{lstlisting}
+  \end{itemize}
+  \frefw{Source: \url{https://www.plumed.org/doc-v2.7/user-doc/html/_installation.html}}
+\end{frame}
+
+\begin{frame}[fragile]{PLUMED}
+  \begin{itemize}
+    \setlength\itemsep{1em}
+    \item After you have finished the simulation, you should have \texttt{out.dcd} which stores the 1-ns trajectory of our system.
+    \item Now we will use PLUMED to analyze our simulation.
+    \item The distance between Na and Cl can be calculated using the following PLUMED action:
+    \begin{lstlisting}
+  distance: DISTANCE ATOMS=319,320
+    \end{lstlisting}
+    \item And the coordination number which represents the collective motion of the solvent wrt Na can be computed as:
+    \begin{lstlisting}
+  COORDINATION ...
+  GROUPA=319
+  GROUPB=1-318:3
+  SWITCH={RATIONAL R_0=0.315 D_MAX=0.5 NN=12 MM=24}
+  NLIST
+  NL_CUTOFF=0.55
+  NL_STRIDE=10
+  LABEL=coord
+  ... COORDINATION
+    \end{lstlisting}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{PLUMED}
+  \begin{itemize}
+    \setlength\itemsep{1em}
+    \item The coordination number calculates the following rational switching function:
+    \begin{equation}
+      f(x)=\frac{1 - \left( \frac{x}{r_0} \right)^n}{1 - \left( \frac{x}{r_0} \right)^m},
+    \end{equation}
+    where $r_0=0.315$, $n=12$, and $m=24$. You can see the function \href{https://www.desmos.com/calculator/nqujdsvj0z}{here.}
+
+    \item Use this command to calculate the defined variables along the trajectory (stored in \texttt{run-driver.sh}):
+    \begin{lstlisting}
+  plumed driver --plumed plumed-driver.dat \
+                --timestep 0.002 \
+                --trajectory-stride 100 \
+                --mf_dcd out.dcd
+    \end{lstlisting}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{PLUMED}
+  \begin{itemize}
+    \setlength\itemsep{1em}
+    \item You should obtain \texttt{COLVAR-driver} and see something like:
+    \begin{lstlisting}
+  #! FIELDS time distance coord
+   0.200000 0.568067 5.506808
+   0.400000 0.500148 4.994588
+   0.600000 0.449778 4.931140
+   0.800000 0.528272 5.105816
+   1.000000 0.474371 5.089863
+   1.200000 0.430620 5.091551
+   1.400000 0.470374 4.993886
+   1.600000 0.458768 4.940097
+   1.800000 0.471886 4.952868
+   2.000000 0.489058 4.897593
+  .
+  .
+    \end{lstlisting}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{LAMMPS}
+  \textbf{Exercises}\\[0.2cm]
+  \begin{enumerate}
+    \setlength\itemsep{1em}
+    \item Load the trajectory: in terminal \texttt{vmd out.dcd -psf nacl.psf}, then in VMD \texttt{pbc wrap -compound res -all}.
+
+    \item Change the visualization of atoms and render the system.
+
+    \item How the distance between Na and Cl changes in time?
+
+    \item Plot distances as a histogram (normalized). What distance value is the most probable?
+
+    \item From the histogram calculate $F=-\frac{1}{\beta}\log N$, where $N$ is the histrogram.
+
+    \item Where the barrier is located?
+
+    \item Perform the same analysis (from step 2) for the coordination number.
+  \end{enumerate}
+\end{frame}
+
+
+\begin{frame}{}
+  \begin{center}
+    \fontsize{25pt}{6}\selectfont\vspace{1.2cm}
+    \textcolor{subtitle}{Enhanced Sampling}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Enhanced Sampling: Source}
+  \begin{itemize}
+  \setlength\itemsep{1em}
+    \item O. Valsson, P. Tiwary, and M. Parrinello, \textit{Enhancing Important Fluctuations: Rare Events and Metadynamics from a Conceptual Viewpoint}, Annual Review of Physical Chemistry, 67:159-184, 2016.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Long Timescales}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Modeling the long-timescale behavior of complex dynamical systems is a fundamental task in physical sciences.
+
+  \item MD simulations allow us to probe the spatiotemporal details of molecular processes, but the so-called sampling problem severely limits their usefulness in practice.
+
+  \item This sampling problem comes from the fact that a typical free energy landscape is characterized by many metastable states separated by free energy barriers that are much higher than the thermal energy $\kT$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{$\kT$}
+  \begin{itemize}
+  \setlength\itemsep{1em}
+    \item $\kT$ is used in physics as a scale factor for energy values in molecular-scale systems.
+    \item Inverse of $\kT$ is called the inverse temperature and generally as $\beta=\frac{1}{\kT}$.
+    \item For a system in equilibrium in canonical ensemble, the probability of the system being in state with energy $U$ is proportional to $\e^{-\beta U}$.
+    \item $\kT$ is the amount of heat required to increase the thermodynamic entropy of a system by $k_{\mathrm{B}}$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{$\kT$}
+  \begin{figure}
+    \includegraphics[width=0.5\textwidth]{fig/kt.png}
+    \caption{$\kT$ in different units.\fref{Source: \url{https://en.wikipedia.org/wiki/KT_(energy)}}}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Metastable States}
+  \begin{figure}
+    \includegraphics[width=\textwidth]{fig/metastate.jpg}
+    \caption{Slow transitions between metastable states.}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Theory of Enhanced Sampling}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Consider a molecular system, described by microscopic coordinates $\mathbf{R}$ and a potential energy function $U(\mathbf{R})$.
+
+  \item We limit our theory to the canonical ensemble (NVT).
+
+  \item At equilibrium, the microscopic coordinates follow the Boltzmann distribution:
+  \begin{equation}
+    P(\mathbf{R}) = \e^{-\beta U(\mathbf{R})}/\int \d\mathbf{R} \,\e^{-\beta U(\mathbf{R})},
+  \label{eq:pr}
+  \end{equation}
+  where $\beta$ is the inverse of the thermal energy.
+
+  \item We identify a small set of coarse-grained order parameters called \textit{collective variables} (CVs):
+  \begin{equation}
+    \mathbf{s}(\mathbf{R}) = [s_1(\mathbf{R}), s_2(\mathbf{R}), \ldots, s_d(\mathbf{R})].
+  \end{equation}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Collective Variables}
+  \begin{itemize}
+  \setlength\itemsep{1em}
+    \item Also called \textit{order parameters} or \textit{coarse-grained variables} in some publications.
+    \item Should be of lower dimension than microscopic coordinates $\bR$.
+    \item Can be any function of microscopic coordinates $s(\bR)$.
+    \item For instance: angles, distances, contact map, dihedral angles, index along a predefined reaction coordinate, position, and many others.
+    \item Can be periodic.
+    \item Any differentiable function (to calculate forces) that discriminates between metastable states.
+    \item Usually selecting CVs is a very difficult task.
+    \item Nowadays machine learning can be used to find CVs: dimensionality reduction methods based on neural networks.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Theory of Enhanced Sampling}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item The equilibrium marginal distribution of CVs is given by integrating out all other degrees of freedom:
+  \begin{align}
+  \label{eq:ps}
+    P(\mathbf{s}) =
+      \int \d\mathbf{R} \, \delta
+        \left[
+          \mathbf{s} - \mathbf{s}(\mathbf{R})
+        \right]
+      P(\mathbf{R}),
+  \end{align}
+  where we use the sifting property of the Dirac $\delta$-function.
+
+  \item Eq.~\ref{eq:ps} is equivalent to:
+  \begin{equation}
+    P(\bs) = \big< \delta[\mathbf{s}-\mathbf{s(R)}] \big>,
+  \end{equation}
+  where $\left<\cdot\right>$ denotes an ensemble average.
+
+  \item Up to an unimportant constant, the \textit{free energy} surface (FES) is given by:
+  \begin{equation}
+    F(\mathbf{s})= -\beta^{-1} \log P(\mathbf{s}).
+  \end{equation}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Theory of Enhanced Sampling}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item FES contains all the relevant information about the system, such as the location and relative stability of the metastable states and the free energy barriers separating them.
+
+  \item The relative free energy difference between two metastable states $A$ and $B$ can be determined from $F(\bs)$ by integrating the probabilities of the two states:
+  \begin{equation}
+    \Delta F_{A,B} = -\frac{1}{\beta}\log\frac{\int_A \d\bs\e^{-\beta F(\bs)}}{\int_B \d\bs\e^{-\beta F(\bs)}},
+  \end{equation}
+  where the integrations are performed over the two regions in CV space that define the two metastable states $A$ and $B$, respectively.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Theory of Enhanced Sampling}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item For an ergodic system, the FES can equivalently be computed as:
+  \begin{equation}
+    F(\bs) = -\frac{1}{\beta} \lim_{t\rightarrow\infty} N(\bs, t),
+  \end{equation}
+  where the normalized histogram is given as:
+  \begin{equation}
+    N(\bs,t) = \frac{\int_0^t \d t'\; \delta[\bs-\bs(\bR(t'))]}{\int_0^t \d t'}.
+  \end{equation}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Theory of Enhanced Sampling}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item CV-based enhanced sampling methods overcome the sampling problem by introducing an external bias potential $V(\bs(\bR))$ acting in CV space.
+
+  \item This leads to sampling according to a \textit{biased} distribution:
+  \begin{equation}
+    P_{V}(\mathbf{R}) = \frac{\e^{-\beta \left[U(\mathbf{R})+V(\mathbf{s}(\mathbf{R})) \right]}}{\int \d\mathbf{R} \,\e^{-\beta \left[U(\mathbf{R})+V(\mathbf{s}(\mathbf{R})) \right]}}
+  \end{equation}
+
+  \item Compare it to Eq.~\ref{eq:pr}.
+
+  \item Idea of Torrie and Valleau, 1977.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Theory of Enhanced Sampling}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item At convergence, CVs follow a biased distribution:
+  \begin{align}
+      P_{V}(\mathbf{s}) &= \int \d\mathbf{R} \, \delta
+    \left[
+      \mathbf{s} - \mathbf{s}(\mathbf{R})
+    \right]
+  P_{V}(\mathbf{R}) \nonumber\\ &=
+  \frac{ \e^{ -\beta\left[ F(\mathbf{s}) + V(\mathbf{s}) \right] } }
+    {\int\d\mathbf{s} \, \e^{ -\beta\left[ F(\mathbf{s}) + V(\mathbf{s}) \right] } },
+  \end{align}
+  which is easier to sample.
+
+  \item The standard reweighting from importance sampling applies here:
+  \begin{equation}
+    P(\bR) \propto P_V(\bR) w(\bs(\bR)) = P_V(\bR) \e^{\beta V(\bs(\bR))}.
+  \end{equation}
+
+  \item CV-based methods differ in how they construct the bias potential and which kind of biased CV sampling they obtain at convergence.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Introduced by Laio and Parrinello in 2002.\fref{See: \url{https://doi.org/10.1073/pnas.202427399}}
+  \item A dynamical scheme in which energy basins are filled in using a time-dependent potential that depends on the history of the system's trajectory.
+  \item Once a basin is filled in, the system is driven into the next basin.
+\end{itemize}
+\begin{figure}
+  \includegraphics[width=0.7\textwidth]{fig/meta.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Let's see how the unbiased probability distribution looks:
+  \begin{equation}
+    P(\bs) = \left< \prod_{\alpha=1}^n \delta\left[ f_\alpha(\br) - \bs_\alpha \right] \right>.
+  \end{equation}
+  \item We can replace the phase space average with a time average over a trajectory:
+  \begin{equation}
+    P(\bs) = \lim_{\tau\rightarrow\infty} \frac{1}{\tau} \int_0^\tau \d t\; \prod_{\alpha=1}^n \delta\left[ f_\alpha(\br(t)) - \bs_\alpha \right],
+  \end{equation}
+  under the assumption that the dynamics is ergodic.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item In metadynamics, we express the Dirac function as the limit of a Gaussian function:
+  \begin{equation}
+    \delta[x-a] = \lim_{\sigma\rightarrow 0} \frac{1}{\sqrt{2\pi\sigma^2}} \e^{-(x-a)^2/2\sigma^2}.
+  \end{equation}
+  \item Then the probability can be written as:
+  \begin{align}
+    P(\bs) &= \lim_{\tau\rightarrow\infty}\lim_{s\rightarrow 0} \frac{1}{\sqrt{2\pi\Delta s^2}\tau} \nonumber\\
+           &\cdot \int_0^\tau \d t\; \prod_{\alpha=1}^n \exp\left[ -\frac{(\bs_\alpha - f_\alpha(\br(t)))^2}{2\Delta s^2} \right].
+  \label{eq:metap}
+  \end{align}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Numerically, Eq.~\ref{eq:metap} is written as a discrete sum:
+  \begin{align}
+    P(\bs) &\approx \frac{1}{\sqrt{2\pi\Delta s^2}\tau} \nonumber\\
+           &\cdot \sum_{k=0}^{N-1} \exp\left[ -\sum_{\alpha=1}^n \frac{(\bs_\alpha - f_\alpha(\br(t)))^2}{2\Delta s^2} \right].
+    \label{eq:metasum}
+  \end{align}
+  \item Eq.~\ref{eq:metasum} suggests a form of the bias potential.
+  \item Consider a bias potential of the form:
+  \begin{equation}
+    V(\br,t) = w \sum_{t=k\tau} \exp\left[ -\sum_{\alpha=1}^n \frac{(f_\alpha(\br) - f_\alpha(\br_\tau(t)))^2}{2\Delta s^2} \right],
+    \label{eq:metav}
+  \end{equation}
+  where $k=1,2,\dots$ and $\tau$ is the time stride of depositing the bias.
+  \item $\br_\tau(t)$ is the biased time evolution of the complete microscopic coordinates up to time $t$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item In the simplest variant of metadynamics, the negative of Eq.~\ref{eq:metav} is taken as an approximation to the free energy:
+  \begin{equation}
+    F(\mathbf{q}) = -\lim_{t\rightarrow\infty} V(\mathbf{q}(\br), t).
+  \end{equation}
+\end{itemize}
+\begin{figure}
+  \includegraphics[width=0.5\textwidth]{fig/metabias.jpg}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Mapping a high-dimensional PES to a low-dimensional FES.
+\end{itemize}
+\begin{figure}
+\centering
+\begin{subfigure}{.5\textwidth}
+  \centering
+  \includegraphics[width=0.75\linewidth]{fig/pes}
+  \caption{PES (C. Dellago)}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{fig/fes}
+  \caption{FES (O. Valsson)}
+\end{subfigure}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item We can build a bias potential using the following expression:
+  \begin{equation}
+    V(\bs)=-\left( 1-\frac{1}{\gamma} \right) F(\bs),
+  \label{eq:wtmetad}
+  \end{equation}
+  where $\gamma\geq 1$ is a parameter called bias factor.
+
+  \item Then we can insert Eq.~\ref{eq:wtmetad} to the formula for the biased probability distribution:
+  \begin{align}
+    P_V(\bs) & \propto \exp\left[ -\beta(F(\bs)+V(\bs)) \right] \nonumber\\
+             & = \exp\left[ -\beta(F(\bs)-(1-1/\gamma)F(\bs)) \right] \nonumber\\
+             & = \exp\left[ -\frac{\beta}{\gamma} F(\bs) \right] = [P(\bs)]^{1/\gamma},
+  \label{eq:pv}
+  \end{align}
+  which is the so-called well-tempered distribution.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Fluctuations enhanced.
+  \item Easier to cross barriers.
+  \item Flatten the sampling comparing to the unbiased distribution $P(\bs)$.
+\end{itemize}
+\begin{figure}
+  \includegraphics[width=\textwidth]{fig/enh}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Using Eq.~\ref{eq:pv} and:
+  \begin{equation}
+    F_V(\bs) = -\frac{1}{\beta}\log P_V(\bs),
+  \end{equation}
+  we can obtain an expression for the free energy under the bias potential:
+  \begin{equation}
+    F_V(\bs) = \frac{1}{\gamma} F(\bs),
+  \end{equation}
+  where we ignore unimportant additive constants.
+
+  \item We sample on an effective FES where the barriers are reduced by a factor of $\gamma$.
+
+  \item Optimal $\gamma$ is such that effective barriers are around $\kT$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Taking the limit $\gamma\to\infty$ gives:
+  \begin{equation}
+    V(\bs) = -F(\bs)
+  \end{equation}
+  and
+  \begin{equation}
+    P_V(\bs) \propto 1,
+  \end{equation}
+  which gives uniform sampling of CVs.
+
+  \item Completely reduces of free energy barriers.
+
+  \item Not optimal: Spend a lot of time sampling irrelevant regions in free energy.
+
+  \item Better to enhance CVs with a finite value of $\gamma$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item To achieve such sampling, we can iteratively build a bias by periodically updating it:
+  \begin{align}
+    V_n(\bs) &= V_{n-1}(\bs) \nonumber\\
+             &+ G(\bs,\bs_n)\exp\left[ -\frac{1}{\gamma-1}\beta V_{n-1}(\bs_n) \right],
+  \end{align}
+  where:
+  \begin{equation}
+    G(\bs,\bs_n) = W_0 \exp\left[ -\sum_i^d \frac{(s_i-s_{n,i})^2}{2\sigma^2_i} \right]
+  \end{equation}
+  is a Gaussian biasing kernel of height $W_0$ that is centered at the current CV location $\bs_n$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item The above update is performed every $N_G$ steps.
+
+  \item Between steps $n$ and $n+1$, the bias is:
+  \begin{equation}
+    V_n(\bs) = \sum_{k=1}^n W_k \exp\left[ -\sum_i \frac{(s_i-s_{k,i})^2}{2\sigma^2_i} \right],
+  \end{equation}
+  where $W_k$ is the Gaussian height for the Gaussian deposited at step $k$:
+  \begin{equation}
+    W_k=W_0\exp\left[ -\frac{1}{\gamma-1} \beta V_{k-1}(\bs_k) \right],
+  \end{equation}
+  where the scaling factor decreases to zero as $1/n$:
+  \begin{equation}
+    \exp\left[ -\frac{1}{\gamma-1} \beta V_{n-1}(\bs_n) \right] \to \frac{1}{n}.
+  \end{equation}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item The bias reaches a quasi-stationary state, which is important for reweighting.
+
+  \item It can be proven that in the long-time limit the bias potential is:
+  \begin{equation}
+    V(\bs,t)=-\left( 1-\frac{1}{\gamma} \right) F(\bs) + c(t),
+  \end{equation}
+  where $c(t)$ is a time-dependent constant that can be estimated during a simulation.
+
+  \item To perform reweighting, we need to account for time-dependence of the bias:
+  \begin{equation}
+    P(\bR,t) = P_V(\bR)\e^{\beta [V(\bs(\bR),t)-c(t)]}.
+  \end{equation}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Any thermodynamic quantity $O$ can be calculated as:
+  \begin{equation}
+    \left< O(\bR) \right> = \left< O(\bR) \e^{\beta [V(\bs(\bR))-c(t)]} \right>_V,
+  \end{equation}
+  where the time-dependent constant $c(t)$ is calculated as:
+  \begin{equation}
+    c(t) = \frac{1}{\beta}\log\frac{\int\d\bs\;\exp\left[ \frac{\gamma}{\gamma-1}\beta V(\bs,t) \right]}{\int\d\bs\;\exp\left[ \frac{1}{\gamma-1}\beta V(\bs,t) \right]},
+  \end{equation}
+  which is valid when the bias has reached a quasi-stationary state.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item It can be shown that a time-independent estimator for $F(\bs)$ is given by:
+  \begin{align}
+    F(\bs) &= -\left( \frac{\gamma}{\gamma-1} \right)V(\bs, t) \nonumber\\
+           &+ \frac{1}{\beta}\log\int\d\bs\; \exp\left[ \frac{\gamma}{\gamma-1} \beta V(\bs,t) \right]
+  \end{align}
+
+  \item The nontempered limit $\gamma\to\infty$ corresponds to:
+  \begin{equation}
+    V(\bs) = -F(\bs),
+  \end{equation}
+  which means that the bias fully compensates the underlying free energy landscape.
+
+  \item This was the idea that guided the first version of metadynamics in which the strengh of the biasing kernel was kept constant at each iteration.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Alanine dipeptide in vacuum with backbone dihedral angles $\Phi$ and $\Psi$ as CVs.
+
+  \item Two metastable basins (or three), $C7_{\mathrm{eq}}$ and $C7_{\mathrm{ax}}$.
+
+  \item Barrier aroung 34 kJ/mol (16 $\kT$).
+
+  \item Mean transition time around 28 $\mu$s.
+\end{itemize}
+\begin{figure}
+  \includegraphics[width=\textwidth]{fig/wtala}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item 300 times shorter trajectory.
+\end{itemize}
+\begin{figure}
+  \includegraphics[width=\textwidth]{fig/wtala1}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Well-Tempered Metadynamics}
+\begin{figure}
+  \includegraphics[width=0.7\textwidth]{fig/metaus}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Biasing Na-Cl}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Updated files for the enhanced sampling simulation are provided \href{https://github.com/jakryd/0800-fizobl/tree/main/project-2}{here}.
+  \item We want to construct a bias potential $V(\bs)$ on the Na-Cl distance using WT-MetaD.
+  \item We will run the simulation for 10 ns.
+  \item The bias is given by:
+  \begin{equation}
+    V(\bs)=-\left(1-\frac{1}{\gamma}\right)F(\bs),
+  \end{equation}
+  so the system evolve under an effective free energy $F(\bs)/\gamma$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Biasing Na-Cl}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Biasing the distance using PLUMED:
+\end{itemize}
+\begin{lstlisting}
+d1: DISTANCE ATOMS=319,320
+metad: METAD ...
+   ARG=d1
+   SIGMA=0.02
+   HEIGHT=1
+   BIASFACTOR=5
+   TEMP=300.0
+   PACE=500
+   GRID_MIN=0.2
+   GRID_MAX=1.0
+   GRID_BIN=300
+   CALC_RCT
+...
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Biasing Na-Cl}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item We also limit the exploration of the CV space by using an upper wall bias $V_w(\bs)$:
+  \begin{equation}
+    V_w(s)=\kappa(s-s_0)^2
+  \end{equation}
+  if $s>s_0$ and 0 otherwise.
+\end{itemize}
+\begin{lstlisting}
+d1: DISTANCE ATOMS=319,320
+uwall: UPPER_WALLS ...
+   ARG=d1
+   AT=0.6
+   KAPPA=2000.0
+   EXP=2
+   EPS=1
+   OFFSET=0.
+...
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Biasing Na-Cl}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Run the simulation using: \texttt{./run.sh} (as before).
+  \item Estimate the free energy profile using \texttt{HILLS} file that resulted from the simulation:
+  \begin{lstlisting}
+plumed sum_hills --hills HILLS --min 0.1 --max 0.8 \
+                 --bin 300 --stride 100
+  \end{lstlisting}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Biasing Na-Cl}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item We should observe two states: associated and dissociated.
+
+  \item Is the simulation converged?
+
+  \item What energy should the system have while in the dissociated state?
+
+  \item Why the free energy starts to rise for distance $>0.6$ nm?
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Reweighting Na-Cl simulation}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item The weights to reweight the simulation are of the following form:
+  \begin{equation}
+    w \propto \e^{\beta [V(\bs,t)-c(t)+V_w(\bs)]},
+  \end{equation}
+  where $V_w(\bs)$ is the wall bias appended to the simulation.
+\end{itemize}
+
+\begin{lstlisting}
+# Read COLVAR file
+distance: READ FILE=COLVAR IGNORE_TIME VALUES=d1
+metad: READ FILE=COLVAR IGNORE_TIME VALUES=metad.rbias
+uwall: READ FILE=COLVAR IGNORE_TIME VALUES=uwall.bias
+
+# Define weights
+weights: REWEIGHT_BIAS TEMP=300 ARG=metad.rbias,uwall.bias
+\end{lstlisting}
+
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item A script to reweight the simulation is \texttt{plumed-driver.dat}.
+  \item Execute it using: \texttt{plumed -driver --plumed plumed-driver.dat --noatoms}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Biasing Na-Cl}
+\begin{itemize}
+\setlength\itemsep{1em}
+  \item Plot the free energy from \texttt{histo.dat}.
+
+  \item Compare it to the free energy generated without reweighting.
+
+  \item Does the reweighting fix the free energy?
+\end{itemize}
+\end{frame}
+
+\end{document}
